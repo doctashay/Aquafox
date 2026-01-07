@@ -234,7 +234,7 @@ class MacroAssembler : public MacroAssemblerSpecific
           : init_(false),
             cond_(Equal),
             jump_(nullptr),
-            reg_(Register::FromCode(0))      // Quell compiler warnings.
+            reg_(Register::FromCode(Register::Code(0)))      // Quell compiler warnings.
         { }
 
         Branch(Condition cond, Register reg, Label* jump)

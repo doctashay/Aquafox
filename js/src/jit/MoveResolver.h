@@ -92,15 +92,15 @@ class MoveOperand
     }
     Register reg() const {
         MOZ_ASSERT(isGeneralReg());
-        return Register::FromCode(code_);
+        return Register::FromCode(Register::Code(code_));
     }
     Register evenReg() const {
         MOZ_ASSERT(isGeneralRegPair());
-        return Register::FromCode(code_);
+        return Register::FromCode(Register::Code(code_));
     }
     Register oddReg() const {
         MOZ_ASSERT(isGeneralRegPair());
-        return Register::FromCode(code_ + 1);
+        return Register::FromCode(Register::Code(code_ + 1));
     }
     FloatRegister floatReg() const {
         MOZ_ASSERT(isFloatReg());
@@ -108,7 +108,7 @@ class MoveOperand
     }
     Register base() const {
         MOZ_ASSERT(isMemoryOrEffectiveAddress());
-        return Register::FromCode(code_);
+        return Register::FromCode(Register::Code(code_));
     }
     int32_t disp() const {
         MOZ_ASSERT(isMemoryOrEffectiveAddress());

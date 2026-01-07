@@ -45,7 +45,7 @@ struct AnyRegister {
     }
     Register gpr() const {
         MOZ_ASSERT(!isFloat());
-        return Register::FromCode(code_);
+        return Register::FromCode(Register::Code(code_));
     }
     FloatRegister fpu() const {
         MOZ_ASSERT(isFloat());
@@ -1273,15 +1273,15 @@ class ABIArg
 
     Register gpr() const {
         MOZ_ASSERT(kind() == GPR);
-        return Register::FromCode(u.gpr_);
+        return Register::FromCode(Register::Code(u.gpr_));
     }
     Register evenGpr() const {
         MOZ_ASSERT(isGeneralRegPair());
-        return Register::FromCode(u.gpr_);
+        return Register::FromCode(Register::Code(u.gpr_));
     }
     Register oddGpr() const {
         MOZ_ASSERT(isGeneralRegPair());
-        return Register::FromCode(u.gpr_ + 1);
+        return Register::FromCode(Register::Code(u.gpr_ + 1));
     }
     FloatRegister fpu() const { MOZ_ASSERT(kind() == FPU); return FloatRegister::FromCode(u.fpu_); }
     uint32_t offsetFromArgBase() const { MOZ_ASSERT(kind() == Stack); return u.offset_; }

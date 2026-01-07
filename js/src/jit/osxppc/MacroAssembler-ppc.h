@@ -106,7 +106,7 @@ class MacroAssemblerPPC : public Assembler
     void mulDoublePtr(ImmPtr imm, Register temp, FloatRegister dest) {
         ispew("[[ mulDoublePtr(immptr, reg, fpr)");
         // mscdfr0!
-        x_li32(addressTempRegister, imm.value);
+        x_li32(addressTempRegister, static_cast<int32_t>(reinterpret_cast<intptr_t>(imm.value)));
         lfd(fpTempRegister, addressTempRegister, 0);
         fmul(dest, fpTempRegister, dest);
         ispew("   mulDoublePtr(immptr, reg, fpr) ]]");
