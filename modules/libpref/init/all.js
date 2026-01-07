@@ -1158,6 +1158,13 @@ pref("javascript.options.compact_on_user_inactive_delay", 15000); // ms
 pref("javascript.options.compact_on_user_inactive_delay", 300000); // ms
 #endif
 
+// Bytecode cache preferences
+// Enable loading pre-compiled .jsc bytecode cache files (significant startup speedup)
+pref("javascript.options.bytecode_cache.enabled", true);
+// Enable runtime generation of .jsc files when scripts are compiled
+// Only enable for development/debugging - production should use build-time generation
+pref("javascript.options.bytecode_cache.generation", false);
+
 pref("javascript.options.mem.gc_high_frequency_time_limit_ms", 1000);
 pref("javascript.options.mem.gc_high_frequency_low_limit_mb", 100);
 pref("javascript.options.mem.gc_high_frequency_high_limit_mb", 500);

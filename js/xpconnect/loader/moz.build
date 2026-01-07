@@ -6,6 +6,7 @@
 
 # These files cannot be built in unified mode because they rely on plarena.h
 SOURCES += [
+    'mozJSBytecodeCache.cpp',
     'mozJSComponentLoader.cpp',
     'mozJSLoaderUtils.cpp',
     'mozJSSubScriptLoader.cpp',

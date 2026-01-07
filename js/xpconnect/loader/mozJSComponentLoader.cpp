@@ -23,6 +23,7 @@
 #include "mozilla/Module.h"
 #include "nsIFile.h"
 #include "mozJSComponentLoader.h"
+#include "mozJSBytecodeCache.h"
 #include "mozJSLoaderUtils.h"
 #include "nsIXPConnect.h"
 #include "nsIObserverService.h"
@@ -671,18 +672,34 @@ mozJSComponentLoader::ObjectForLocation(ComponentLoaderInfo& aInfo,
     rv = aInfo.URI()->GetSpec(nativePath);
     NS_ENSURE_SUCCESS(rv, rv);
 
-    // Before compiling the script, first check to see if we have it in
-    // the startupcache.  Note: as a rule, startupcache errors are not fatal
-    // to loading the script, since we can always slow-load.
+    // Before compiling the script, first check to see if we have a pre-compiled
+    // .jsc bytecode cache file. This is the fastest path since no parsing is needed.
+    // Then fall back to the startupcache, and finally to source compilation.
 
     bool writeToCache = false;
+    bool loadedFromBytecodeCache = false;
     StartupCache* cache = StartupCache::GetSingleton();
 
     nsAutoCString cachePath(kJSCachePrefix);
     rv = PathifyURI(aInfo.URI(), cachePath);
     NS_ENSURE_SUCCESS(rv, rv);
 
-    if (cache) {
+    // Try bytecode cache first (only for scripts, not functions)
+    if (!mReuseLoaderGlobal && realFile && aComponentFile) {
+        JSCCacheResult cacheResult;
+        rv = ReadBytecodeCache(aComponentFile, cx, &script, &cacheResult);
+        if (NS_SUCCEEDED(rv) && script) {
+            LOG(("Successfully loaded %s from bytecode cache\n", nativePath.get()));
+            loadedFromBytecodeCache = true;
+        } else if (cacheResult != JSCCacheResult::NotFound) {
+            // Log cache validation failures for debugging
+            LOG(("Bytecode cache invalid for %s: %s\n", 
+                 nativePath.get(), JSCCacheResultToString(cacheResult)));
+        }
+    }
+
+    // If bytecode cache miss, try startup cache
+    if (!script && !function && cache) {
         if (!mReuseLoaderGlobal) {
             rv = ReadCachedScript(cache, cachePath, cx, mSystemPrincipal, &script);
         } else {
@@ -699,6 +716,12 @@ mozJSComponentLoader::ObjectForLocation(ComponentLoaderInfo& aInfo,
             writeToCache = true;
         }
     }
+
+    // Variables for bytecode cache generation (need to persist until cache write)
+    nsAutoArrayPtr<char> sourceDataForCache;
+    uint32_t sourceDataLength = 0;
+    bool generateBytecodeCache = !mReuseLoaderGlobal && realFile && 
+                                 IsBytecodeCacheGenerationEnabled();
 
     if (!script && !function) {
         // The script wasn't in the cache , so compile it now.
@@ -767,6 +790,13 @@ mozJSComponentLoader::ObjectForLocation(ComponentLoaderInfo& aInfo,
                 return NS_ERROR_FAILURE;
             }
 
+            // Save source data for bytecode cache generation if enabled
+            if (generateBytecodeCache) {
+                sourceDataForCache = new char[fileSize32];
+                memcpy(sourceDataForCache.get(), buf, fileSize32);
+                sourceDataLength = fileSize32;
+            }
+
             if (!mReuseLoaderGlobal) {
                 Compile(cx, options, buf, fileSize32, &script);
             } else {
@@ -817,8 +847,15 @@ mozJSComponentLoader::ObjectForLocation(ComponentLoaderInfo& aInfo,
                 return NS_ERROR_FAILURE;
             }
 
+            // Save source data for bytecode cache generation if enabled
+            if (generateBytecodeCache) {
+                sourceDataForCache = new char[len];
+                memcpy(sourceDataForCache.get(), buf, len);
+                sourceDataLength = len;
+            }
+
             if (!mReuseLoaderGlobal) {
-                script = Compile(cx, options, buf, fileSize32);
+                script = Compile(cx, options, buf, len);
             } else {
                 // Note: exceptions will get handled further down;
                 // don't early return for them here.
@@ -826,7 +863,7 @@ mozJSComponentLoader::ObjectForLocation(ComponentLoaderInfo& aInfo,
                 if (scopeChain.append(obj)) {
                     CompileFunction(cx, scopeChain,
                                     options, nullptr, 0, nullptr,
-                                    buf, fileSize32, &function);
+                                    buf, len, &function);
                 }
             }
 
@@ -893,8 +930,9 @@ mozJSComponentLoader::ObjectForLocation(ComponentLoaderInfo& aInfo,
     MOZ_ASSERT(!!script != !!function);
     MOZ_ASSERT(!!script == JS_IsGlobalObject(obj));
 
-    if (writeToCache) {
+    if (writeToCache && !loadedFromBytecodeCache) {
         // We successfully compiled the script, so cache it.
+        // Skip if we loaded from bytecode cache (no need to write to startup cache).
         if (script) {
             rv = WriteCachedScript(cache, cachePath, cx, mSystemPrincipal,
                                    script);
@@ -909,6 +947,20 @@ mozJSComponentLoader::ObjectForLocation(ComponentLoaderInfo& aInfo,
             LOG(("Successfully wrote to cache\n"));
         } else {
             LOG(("Failed to write to cache\n"));
+        }
+    }
+
+    // Write bytecode cache if generation is enabled and we compiled from source
+    if (generateBytecodeCache && script && sourceDataForCache && 
+        !loadedFromBytecodeCache && aComponentFile) {
+        JSCCacheResult cacheResult;
+        rv = WriteBytecodeCache(aComponentFile, sourceDataForCache.get(), 
+                                sourceDataLength, cx, script, &cacheResult);
+        if (NS_SUCCEEDED(rv)) {
+            LOG(("Successfully wrote bytecode cache\n"));
+        } else {
+            LOG(("Failed to write bytecode cache: %s\n", 
+                 JSCCacheResultToString(cacheResult)));
         }
     }
 
