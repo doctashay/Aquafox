@@ -1982,6 +1982,28 @@ CASE(JSOP_AND)
 }
 END_CASE(JSOP_AND)
 
+CASE(JSOP_COALESCE)
+{
+    // Nullish coalescing: if value is NOT null/undefined, jump (short-circuit)
+    HandleValue val = REGS.stackHandleAt(-1);
+    if (!val.isNullOrUndefined())
+        ADVANCE_AND_DISPATCH(GET_JUMP_OFFSET(REGS.pc));
+    // Otherwise fall through - pop the nullish value and evaluate RHS
+}
+END_CASE(JSOP_COALESCE)
+
+CASE(JSOP_CHECKOPTCHAIN)
+{
+    // Optional chaining: if value is null/undefined, jump and replace with undefined
+    HandleValue val = REGS.stackHandleAt(-1);
+    if (val.isNullOrUndefined()) {
+        REGS.sp[-1].setUndefined();
+        ADVANCE_AND_DISPATCH(GET_JUMP_OFFSET(REGS.pc));
+    }
+    // Otherwise continue with property access
+}
+END_CASE(JSOP_CHECKOPTCHAIN)
+
 #define FETCH_ELEMENT_ID(n, id)                                               \
     JS_BEGIN_MACRO                                                            \
         if (!ToPropertyKey(cx, REGS.stackHandleAt(n), &(id)))                 \

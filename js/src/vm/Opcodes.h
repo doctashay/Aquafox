@@ -1809,8 +1809,27 @@
      *   Stack: => val
      */ \
     macro(JSOP_GETIMPORT,     176,"getimport",  NULL,     5,  0,  1,  JOF_ATOM|JOF_NAME|JOF_TYPESET) \
-    macro(JSOP_UNUSED177,     177,"unused177",  NULL,     1,  0,  0,  JOF_BYTE) \
-    macro(JSOP_UNUSED178,     178,"unused178",  NULL,     1,  0,  0,  JOF_BYTE) \
+    /*
+     * Nullish coalescing operator (??).
+     * If the top of stack value is NOT null or undefined, jumps to a 32-bit
+     * offset from the current bytecode, leaving the value on stack.
+     * Otherwise, pops the value and continues to evaluate the right operand.
+     *   Category: Operators
+     *   Type: Logical Operators
+     *   Operands: int32_t offset
+     *   Stack: val => val (if not nullish) or => (if nullish, to evaluate RHS)
+     */ \
+    macro(JSOP_COALESCE,      177,"coalesce",   NULL,     5,  1,  1,  JOF_JUMP|JOF_DETECTING|JOF_LEFTASSOC) \
+    /*
+     * Checks if the top of stack value is null or undefined.
+     * If so, jumps to a 32-bit offset and pushes undefined.
+     * Used for optional chaining short-circuit.
+     *   Category: Operators
+     *   Type: Logical Operators
+     *   Operands: int32_t offset
+     *   Stack: val => val (if not nullish) or jumps with undefined
+     */ \
+    macro(JSOP_CHECKOPTCHAIN,  178,"checkoptchain", NULL,  5,  1,  1,  JOF_JUMP) \
     macro(JSOP_UNUSED179,     179,"unused179",  NULL,     1,  0,  0,  JOF_BYTE) \
     macro(JSOP_UNUSED180,     180,"unused180",  NULL,     1,  0,  0,  JOF_BYTE) \
     macro(JSOP_UNUSED181,     181,"unused181",  NULL,     1,  0,  0,  JOF_BYTE) \

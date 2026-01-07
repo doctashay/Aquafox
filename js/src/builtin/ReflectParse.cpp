@@ -564,7 +564,7 @@ class NodeBuilder
     bool updateExpression(HandleValue expr, bool incr, bool prefix, TokenPos* pos,
                           MutableHandleValue dst);
 
-    bool logicalExpression(bool lor, HandleValue left, HandleValue right, TokenPos* pos,
+    bool logicalExpression(ParseNodeKind kind, HandleValue left, HandleValue right, TokenPos* pos,
                            MutableHandleValue dst);
 
     bool conditionalExpression(HandleValue test, HandleValue cons, HandleValue alt, TokenPos* pos,
@@ -578,7 +578,10 @@ class NodeBuilder
                         MutableHandleValue dst);
 
     bool memberExpression(bool computed, HandleValue expr, HandleValue member, TokenPos* pos,
-                          MutableHandleValue dst);
+                          MutableHandleValue dst, bool optional = false);
+
+    bool optionalCallExpression(HandleValue callee, NodeVector& args, TokenPos* pos,
+                                MutableHandleValue dst);
 
     bool arrayExpression(NodeVector& elts, TokenPos* pos, MutableHandleValue dst);
 
@@ -1076,11 +1079,25 @@ NodeBuilder::updateExpression(HandleValue expr, bool incr, bool prefix, TokenPos
 }
 
 bool
-NodeBuilder::logicalExpression(bool lor, HandleValue left, HandleValue right, TokenPos* pos,
+NodeBuilder::logicalExpression(ParseNodeKind kind, HandleValue left, HandleValue right, TokenPos* pos,
                                MutableHandleValue dst)
 {
     RootedValue opName(cx);
-    if (!atomValue(lor ? "||" : "&&", &opName))
+    const char* op;
+    switch (kind) {
+      case PNK_OR:
+        op = "||";
+        break;
+      case PNK_AND:
+        op = "&&";
+        break;
+      case PNK_COALESCE:
+        op = "??";
+        break;
+      default:
+        MOZ_CRASH("Unexpected logical operator kind");
+    }
+    if (!atomValue(op, &opName))
         return false;
 
     RootedValue cb(cx, callbacks[AST_LOGICAL_EXPR]);
@@ -1153,9 +1170,10 @@ NodeBuilder::newExpression(HandleValue callee, NodeVector& args, TokenPos* pos,
 
 bool
 NodeBuilder::memberExpression(bool computed, HandleValue expr, HandleValue member, TokenPos* pos,
-                              MutableHandleValue dst)
+                              MutableHandleValue dst, bool optional)
 {
     RootedValue computedVal(cx, BooleanValue(computed));
+    RootedValue optionalVal(cx, BooleanValue(optional));
 
     RootedValue cb(cx, callbacks[AST_MEMBER_EXPR]);
     if (!cb.isNull())
@@ -1165,6 +1183,28 @@ NodeBuilder::memberExpression(bool computed, HandleValue expr, HandleValue membe
                    "object", expr,
                    "property", member,
                    "computed", computedVal,
+                   "optional", optionalVal,
+                   dst);
+}
+
+bool
+NodeBuilder::optionalCallExpression(HandleValue callee, NodeVector& args, TokenPos* pos,
+                                    MutableHandleValue dst)
+{
+    RootedValue array(cx);
+    if (!newArray(args, &array))
+        return false;
+
+    RootedValue optionalVal(cx, BooleanValue(true));
+
+    RootedValue cb(cx, callbacks[AST_CALL_EXPR]);
+    if (!cb.isNull())
+        return callback(cb, callee, array, pos, dst);
+
+    return newNode(AST_CALL_EXPR, pos,
+                   "callee", callee,
+                   "arguments", array,
+                   "optional", optionalVal,
                    dst);
 }
 
@@ -2672,8 +2712,7 @@ ASTSerializer::leftAssociate(ParseNode* pn, MutableHandleValue dst)
     MOZ_ASSERT(pn->pn_count >= 1);
 
     ParseNodeKind kind = pn->getKind();
-    bool lor = kind == PNK_OR;
-    bool logop = lor || (kind == PNK_AND);
+    bool logop = (kind == PNK_OR) || (kind == PNK_AND) || (kind == PNK_COALESCE);
 
     ParseNode* head = pn->pn_head;
     RootedValue left(cx);
@@ -2687,7 +2726,7 @@ ASTSerializer::leftAssociate(ParseNode* pn, MutableHandleValue dst)
         TokenPos subpos(pn->pn_pos.begin, next->pn_pos.end);
 
         if (logop) {
-            if (!builder.logicalExpression(lor, left, right, &subpos, &left))
+            if (!builder.logicalExpression(kind, left, right, &subpos, &left))
                 return false;
         } else {
             BinaryOperator op = binop(pn->getKind(), pn->getOp());
@@ -2897,6 +2936,7 @@ ASTSerializer::expression(ParseNode* pn, MutableHandleValue dst)
 
       case PNK_OR:
       case PNK_AND:
+      case PNK_COALESCE:
         return leftAssociate(pn, dst);
 
       case PNK_PREINCREMENT:
@@ -3078,6 +3118,52 @@ ASTSerializer::expression(ParseNode* pn, MutableHandleValue dst)
 
         return expression(pn->pn_right, &right) &&
                builder.memberExpression(true, left, right, &pn->pn_pos, dst);
+      }
+
+      case PNK_OPTDOT:
+      {
+        RootedValue expr(cx);
+        RootedValue propname(cx);
+        RootedAtom pnAtom(cx, pn->pn_atom);
+
+        if (!expression(pn->pn_expr, &expr))
+            return false;
+
+        return identifier(pnAtom, nullptr, &propname) &&
+               builder.memberExpression(false, expr, propname, &pn->pn_pos, dst, true);
+      }
+
+      case PNK_OPTELEM:
+      {
+        RootedValue left(cx), right(cx);
+
+        if (!expression(pn->pn_left, &left))
+            return false;
+
+        return expression(pn->pn_right, &right) &&
+               builder.memberExpression(true, left, right, &pn->pn_pos, dst, true);
+      }
+
+      case PNK_OPTCALL:
+      {
+        ParseNode* next = pn->pn_head;
+
+        RootedValue callee(cx);
+        if (!expression(next, &callee))
+            return false;
+
+        NodeVector args(cx);
+        if (!args.reserve(pn->pn_count - 1))
+            return false;
+
+        for (next = next->pn_next; next; next = next->pn_next) {
+            RootedValue arg(cx);
+            if (!expression(next, &arg))
+                return false;
+            args.infallibleAppend(arg);
+        }
+
+        return builder.optionalCallExpression(callee, args, &pn->pn_pos, dst);
       }
 
       case PNK_CALLSITEOBJ:

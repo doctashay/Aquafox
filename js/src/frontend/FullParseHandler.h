@@ -73,7 +73,8 @@ class FullParseHandler
     typedef Definition* DefinitionNode;
 
     bool isPropertyAccess(ParseNode* node) {
-        return node->isKind(PNK_DOT) || node->isKind(PNK_ELEM);
+        return node->isKind(PNK_DOT) || node->isKind(PNK_ELEM) ||
+               node->isKind(PNK_OPTDOT) || node->isKind(PNK_OPTELEM);
     }
 
     bool isFunctionCall(ParseNode* node) {
@@ -687,6 +688,23 @@ class FullParseHandler
 
     ParseNode* newPropertyByValue(ParseNode* lhs, ParseNode* index, uint32_t end) {
         return new_<PropertyByValue>(lhs, index, lhs->pn_pos.begin, end);
+    }
+
+    // Optional chaining variants
+    ParseNode* newOptionalPropertyAccess(ParseNode* pn, PropertyName* name, uint32_t end) {
+        // Uses PNK_OPTDOT instead of PNK_DOT
+        TokenPos pos(pn->pn_pos.begin, end);
+        return new_<NameNode>(PNK_OPTDOT, JSOP_NOP, name, pn, pos);
+    }
+
+    ParseNode* newOptionalPropertyByValue(ParseNode* lhs, ParseNode* index, uint32_t end) {
+        // Uses PNK_OPTELEM instead of PNK_ELEM
+        return new_<BinaryNode>(PNK_OPTELEM, JSOP_NOP, lhs, index);
+    }
+
+    ParseNode* newOptionalCall() {
+        // Uses PNK_OPTCALL instead of PNK_CALL
+        return new_<ListNode>(PNK_OPTCALL, JSOP_CALL, pos());
     }
 
     inline bool addCatchBlock(ParseNode* catchList, ParseNode* letBlock,

@@ -63,6 +63,7 @@
     macro(INC,          "'++'")   /* increment */ \
     macro(DEC,          "'--'")   /* decrement */ \
     macro(DOT,          "'.'")    /* member operator */ \
+    macro(OPTCHAIN,     "'?.'")   /* optional chaining */ \
     macro(TRIPLEDOT,    "'...'")  /* rest arguments and spread operator */ \
     macro(LB,           "'['") \
     macro(RB,           "']'") \
@@ -129,6 +130,7 @@
     macro(OR,           "'||'")   /* logical or */ \
     range(BINOP_FIRST, OR) \
     macro(AND,          "'&&'")   /* logical and */ \
+    macro(NULLISH,      "'??'")   /* nullish coalescing */ \
     macro(BITOR,        "'|'")    /* bitwise-or */ \
     macro(BITXOR,       "'^'")    /* bitwise-xor */ \
     macro(BITAND,       "'&'")    /* bitwise-and */ \

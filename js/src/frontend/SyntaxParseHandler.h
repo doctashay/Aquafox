@@ -341,6 +341,17 @@ class SyntaxParseHandler
 
     Node newPropertyByValue(Node pn, Node kid, uint32_t end) { return NodeElement; }
 
+    // Optional chaining variants - use same node types as regular property access
+    // since syntax parsing only needs to distinguish property access from other nodes
+    Node newOptionalPropertyAccess(Node pn, PropertyName* name, uint32_t end) {
+        lastAtom = name;
+        return NodeDottedProperty;
+    }
+
+    Node newOptionalPropertyByValue(Node pn, Node kid, uint32_t end) { return NodeElement; }
+
+    Node newOptionalCall() { return NodeFunctionCall; }
+
     bool addCatchBlock(Node catchList, Node letBlock,
                        Node catchName, Node catchGuard, Node catchBody) { return true; }
 

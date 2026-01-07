@@ -514,6 +514,11 @@ struct BytecodeEmitter
     bool emitPropOp(ParseNode* pn, JSOp op);
     bool emitPropIncDec(ParseNode* pn);
 
+    // Optional chaining support
+    bool emitOptionalDot(ParseNode* pn);
+    bool emitOptionalElem(ParseNode* pn);
+    bool emitOptionalCall(ParseNode* pn);
+
     bool emitAsyncWrapper(unsigned index, bool isMethod);
 
     bool emitComputedPropertyName(ParseNode* computedPropName);

@@ -216,6 +216,7 @@ MSG_DEF(JSMSG_BAD_METHOD_DEF,          0, JSEXN_SYNTAXERR, "bad method definitio
 MSG_DEF(JSMSG_BAD_OCTAL,               1, JSEXN_SYNTAXERR, "{0} is not a legal ECMA-262 octal constant")
 MSG_DEF(JSMSG_BAD_OPERAND,             1, JSEXN_SYNTAXERR, "invalid {0} operand")
 MSG_DEF(JSMSG_BAD_POW_LEFTSIDE,        0, JSEXN_SYNTAXERR, "unparenthesized unary expression can't appear on the left-hand side of '**'")
+MSG_DEF(JSMSG_BAD_COALESCE_MIXING,     0, JSEXN_SYNTAXERR, "cannot use '??' unparenthesized within '||' and '&&' expressions")
 MSG_DEF(JSMSG_BAD_PROP_ID,             0, JSEXN_SYNTAXERR, "invalid property id")
 MSG_DEF(JSMSG_BAD_RETURN_OR_YIELD,     1, JSEXN_SYNTAXERR, "{0} not in function")
 MSG_DEF(JSMSG_BAD_STRICT_ASSIGN,       1, JSEXN_SYNTAXERR, "can't assign to {0} in strict mode")

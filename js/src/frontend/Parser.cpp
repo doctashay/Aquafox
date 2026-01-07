@@ -7623,6 +7623,7 @@ Parser<ParseHandler>::expr(InHandling inHandling, YieldHandling yieldHandling,
 static const JSOp ParseNodeKindToJSOp[] = {
     JSOP_OR,
     JSOP_AND,
+    JSOP_COALESCE,
     JSOP_BITOR,
     JSOP_BITXOR,
     JSOP_BITAND,
@@ -7665,6 +7666,7 @@ BinaryOpTokenKindToParseNodeKind(TokenKind tok)
 static const int PrecedenceTable[] = {
     1, /* PNK_OR */
     2, /* PNK_AND */
+    1, /* PNK_COALESCE - same precedence as OR, but cannot be mixed without parens */
     3, /* PNK_BITOR */
     4, /* PNK_BITXOR */
     5, /* PNK_BITAND */
@@ -7740,6 +7742,20 @@ Parser<ParseHandler>::orExpr1(InHandling inHandling, YieldHandling yieldHandling
                 return null();
             }
             pnk = BinaryOpTokenKindToParseNodeKind(tok);
+
+            // Report an error if ?? is mixed with || or && without parentheses.
+            // Per ES2020, these cannot be combined without explicit grouping.
+            if (depth > 0) {
+                ParseNodeKind prevPnk = kindStack[depth - 1];
+                bool prevIsLogical = (prevPnk == PNK_OR || prevPnk == PNK_AND);
+                bool prevIsCoalesce = (prevPnk == PNK_COALESCE);
+                bool curIsLogical = (pnk == PNK_OR || pnk == PNK_AND);
+                bool curIsCoalesce = (pnk == PNK_COALESCE);
+                if ((prevIsLogical && curIsCoalesce) || (prevIsCoalesce && curIsLogical)) {
+                    report(ParseError, false, null(), JSMSG_BAD_COALESCE_MIXING);
+                    return null();
+                }
+            }
         } else {
             tok = TOK_EOF;
             pnk = PNK_LIMIT;
@@ -9467,6 +9483,54 @@ Parser<ParseHandler>::memberExpr(YieldHandling yieldHandling, TripledotHandling 
             nextMember = handler.newPropertyByValue(lhs, propExpr, pos().end);
             if (!nextMember)
                 return null();
+        } else if (tt == TOK_OPTCHAIN) {
+            // Optional chaining: obj?.prop, obj?.[expr], or obj?.()
+            // Cannot be used with super.
+            if (handler.isSuperBase(lhs)) {
+                report(ParseError, false, null(), JSMSG_BAD_SUPER);
+                return null();
+            }
+
+            TokenKind tt2;
+            if (!tokenStream.getToken(&tt2))
+                return null();
+
+            if (tt2 == TOK_NAME) {
+                // obj?.prop
+                PropertyName* field = tokenStream.currentName();
+                nextMember = handler.newOptionalPropertyAccess(lhs, field, pos().end);
+                if (!nextMember)
+                    return null();
+            } else if (tt2 == TOK_LB) {
+                // obj?.[expr]
+                Node propExpr = expr(InAllowed, yieldHandling, TripledotProhibited, possibleError);
+                if (!propExpr)
+                    return null();
+
+                MUST_MATCH_TOKEN(TOK_RB, JSMSG_BRACKET_IN_INDEX);
+
+                nextMember = handler.newOptionalPropertyByValue(lhs, propExpr, pos().end);
+                if (!nextMember)
+                    return null();
+            } else if (tt2 == TOK_LP) {
+                // obj?.()
+                nextMember = handler.newOptionalCall();
+                if (!nextMember)
+                    return null();
+
+                handler.setBeginPosition(nextMember, lhs);
+                handler.addList(nextMember, lhs);
+
+                bool isSpread = false;
+                if (!argumentList(yieldHandling, nextMember, &isSpread))
+                    return null();
+
+                // Use JSOP_CALL for now; Phase 2 will add proper optional call opcode
+                handler.setOp(nextMember, isSpread ? JSOP_SPREADCALL : JSOP_CALL);
+            } else {
+                report(ParseError, false, null(), JSMSG_NAME_AFTER_DOT);
+                return null();
+            }
         } else if ((allowCallSyntax && tt == TOK_LP) ||
                    tt == TOK_TEMPLATE_HEAD ||
                    tt == TOK_NO_SUBS_TEMPLATE)

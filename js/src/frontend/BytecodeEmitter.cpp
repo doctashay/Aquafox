@@ -2015,7 +2015,14 @@ BytecodeEmitter::checkSideEffects(ParseNode* pn, bool* answer)
 
       // Watch out for getters!
       case PNK_DOT:
+      case PNK_OPTDOT:
         MOZ_ASSERT(pn->isArity(PN_NAME));
+        *answer = true;
+        return true;
+
+      // Watch out for getters (element access)!
+      case PNK_OPTELEM:
+      case PNK_OPTCALL:
         *answer = true;
         return true;
 
@@ -2125,6 +2132,7 @@ BytecodeEmitter::checkSideEffects(ParseNode* pn, bool* answer)
       // perform no conversions.
       case PNK_OR:
       case PNK_AND:
+      case PNK_COALESCE:
       case PNK_STRICTEQ:
       case PNK_STRICTNE:
       // Any subexpression of a comma expression could be effectful.
@@ -2773,6 +2781,107 @@ BytecodeEmitter::emitPropIncDec(ParseNode* pn)
         return false;
     if (post && !emit1(JSOP_POP))                   // RESULT
         return false;
+
+    return true;
+}
+
+/*
+ * Optional chaining (obj?.prop, obj?.[expr], func?.()) support.
+ *
+ * For optional property access like `obj?.prop`, we emit:
+ *   1. Evaluate obj and push it onto the stack
+ *   2. JSOP_CHECKOPTCHAIN - if null/undefined, jump to end with undefined
+ *   3. JSOP_GETPROP to access the property
+ *
+ * The short-circuit behavior is handled by JSOP_CHECKOPTCHAIN which
+ * jumps to the end (pushing undefined) if the base is null or undefined.
+ */
+bool
+BytecodeEmitter::emitOptionalDot(ParseNode* pn)
+{
+    MOZ_ASSERT(pn->isKind(PNK_OPTDOT));
+
+    // Emit the base object expression
+    ParseNode* base = pn->pn_expr;
+    if (!emitTree(base))
+        return false;
+
+    // Check if the base is null/undefined and short-circuit if so
+    ptrdiff_t top;
+    if (!emitJump(JSOP_CHECKOPTCHAIN, 0, &top))
+        return false;
+
+    // Emit property access
+    if (!emitAtomOp(pn, JSOP_GETPROP))
+        return false;
+
+    // Jump target is here - patch the offset
+    ptrdiff_t off = offset();
+    SET_JUMP_OFFSET(code(top), off - top);
+
+    return true;
+}
+
+bool
+BytecodeEmitter::emitOptionalElem(ParseNode* pn)
+{
+    MOZ_ASSERT(pn->isKind(PNK_OPTELEM));
+
+    // Emit the base object expression
+    ParseNode* base = pn->pn_left;
+    if (!emitTree(base))
+        return false;
+
+    // Check if the base is null/undefined and short-circuit if so
+    ptrdiff_t top;
+    if (!emitJump(JSOP_CHECKOPTCHAIN, 0, &top))
+        return false;
+
+    // Emit the property index expression
+    ParseNode* index = pn->pn_right;
+    if (!emitTree(index))
+        return false;
+
+    // Emit element access
+    if (!emit1(JSOP_GETELEM))
+        return false;
+
+    // Jump target is here - patch the offset
+    ptrdiff_t off = offset();
+    SET_JUMP_OFFSET(code(top), off - top);
+
+    return true;
+}
+
+bool
+BytecodeEmitter::emitOptionalCall(ParseNode* pn)
+{
+    MOZ_ASSERT(pn->isKind(PNK_OPTCALL));
+
+    // The call node has the callee as the first child
+    ParseNode* callee = pn->pn_head;
+    if (!emitTree(callee))
+        return false;
+
+    // Check if the callee is null/undefined and short-circuit if so
+    ptrdiff_t top;
+    if (!emitJump(JSOP_CHECKOPTCHAIN, 0, &top))
+        return false;
+
+    // Emit arguments
+    for (ParseNode* arg = callee->pn_next; arg; arg = arg->pn_next) {
+        if (!emitTree(arg))
+            return false;
+    }
+
+    // Emit call - count includes callee
+    uint32_t argc = pn->pn_count - 1;
+    if (!emitCall(pn->getOp(), argc))
+        return false;
+
+    // Jump target is here - patch the offset
+    ptrdiff_t off = offset();
+    SET_JUMP_OFFSET(code(top), off - top);
 
     return true;
 }
@@ -8556,6 +8665,7 @@ BytecodeEmitter::emitTree(ParseNode* pn, EmitLineNumberNote emitLineNote)
 
       case PNK_OR:
       case PNK_AND:
+      case PNK_COALESCE:
         if (!emitLogical(pn))
             return false;
         break;
@@ -8656,6 +8766,21 @@ BytecodeEmitter::emitTree(ParseNode* pn, EmitLineNumberNote emitLineNote)
             if (!emitElemOp(pn, JSOP_GETELEM))
                 return false;
         }
+        break;
+
+      case PNK_OPTDOT:
+        if (!emitOptionalDot(pn))
+            return false;
+        break;
+
+      case PNK_OPTELEM:
+        if (!emitOptionalElem(pn))
+            return false;
+        break;
+
+      case PNK_OPTCALL:
+        if (!emitOptionalCall(pn))
+            return false;
         break;
 
       case PNK_NEW:

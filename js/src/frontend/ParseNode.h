@@ -98,6 +98,9 @@ class PackedScopeCoordinate
     F(POSTDECREMENT) \
     F(DOT) \
     F(ELEM) \
+    F(OPTDOT) \
+    F(OPTELEM) \
+    F(OPTCALL) \
     F(ARRAY) \
     F(ELISION) \
     F(STATEMENTLIST) \
@@ -193,6 +196,7 @@ class PackedScopeCoordinate
      */ \
     F(OR) \
     F(AND) \
+    F(COALESCE) \
     F(BITOR) \
     F(BITXOR) \
     F(BITAND) \
