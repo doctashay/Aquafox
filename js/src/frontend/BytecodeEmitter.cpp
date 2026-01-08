@@ -7634,6 +7634,9 @@ bool
 BytecodeEmitter::emitLogical(ParseNode* pn)
 {
     MOZ_ASSERT(pn->isArity(PN_LIST));
+    
+    fprintf(stderr, "DEBUG emitLogical ENTRY: kind=%d (PNK_OR=%d, PNK_AND=%d, PNK_COALESCE=%d), op=%d\n",
+            (int)pn->getKind(), (int)PNK_OR, (int)PNK_AND, (int)PNK_COALESCE, (int)pn->getOp());
 
     /*
      * JSOP_OR converts the operand on the stack to boolean, leaves the original

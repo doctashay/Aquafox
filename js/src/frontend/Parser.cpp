@@ -7742,6 +7742,10 @@ Parser<ParseHandler>::orExpr1(InHandling inHandling, YieldHandling yieldHandling
                 return null();
             }
             pnk = BinaryOpTokenKindToParseNodeKind(tok);
+            
+            if (pnk == PNK_COALESCE) {
+                fprintf(stderr, "DEBUG Parser: Found PNK_COALESCE, tok=%d\n", (int)tok);
+            }
 
             // Report an error if ?? is mixed with || or && without parentheses.
             // Per ES2020, these cannot be combined without explicit grouping.
@@ -7772,6 +7776,10 @@ Parser<ParseHandler>::orExpr1(InHandling inHandling, YieldHandling yieldHandling
             depth--;
             ParseNodeKind combiningPnk = kindStack[depth];
             JSOp combiningOp = BinaryOpParseNodeKindToJSOp(combiningPnk);
+            if (combiningPnk == PNK_COALESCE) {
+                fprintf(stderr, "DEBUG Parser: Creating COALESCE node with op=%d (JSOP_COALESCE=%d)\n", 
+                        (int)combiningOp, (int)JSOP_COALESCE);
+            }
             pn = handler.appendOrCreateList(combiningPnk, nodeStack[depth], pn, pc, combiningOp);
             if (!pn)
                 return pn;
