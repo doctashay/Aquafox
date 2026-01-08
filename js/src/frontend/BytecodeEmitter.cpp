@@ -7673,11 +7673,15 @@ BytecodeEmitter::emitLogical(ParseNode* pn)
 
     pn2 = pn->pn_head;
     ptrdiff_t off = offset();
+    fprintf(stderr, "DEBUG emitLogical: patching opcode %d (OR=%d, AND=%d, COALESCE=%d)\n", 
+            (int)pn->getOp(), (int)JSOP_OR, (int)JSOP_AND, (int)JSOP_COALESCE);
     do {
         jsbytecode* pc = code(top);
         ptrdiff_t tmp = GET_JUMP_OFFSET(pc);
         SET_JUMP_OFFSET(pc, off - top);
         *pc = pn->getOp();
+        fprintf(stderr, "DEBUG emitLogical: wrote opcode %d at offset %d, jump to %d\n",
+                (int)*pc, (int)top, (int)(off - top));
         top += tmp;
     } while ((pn2 = pn2->pn_next)->pn_next);
 

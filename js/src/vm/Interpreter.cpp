@@ -1984,10 +1984,15 @@ END_CASE(JSOP_AND)
 
 CASE(JSOP_COALESCE)
 {
+    fprintf(stderr, "DEBUG: JSOP_COALESCE entered\n");
     // Nullish coalescing: if value is NOT null/undefined, jump (short-circuit)
     HandleValue val = REGS.stackHandleAt(-1);
-    if (!val.isNullOrUndefined())
+    fprintf(stderr, "DEBUG: JSOP_COALESCE got val, checking nullish\n");
+    if (!val.isNullOrUndefined()) {
+        fprintf(stderr, "DEBUG: JSOP_COALESCE - not nullish, jumping\n");
         ADVANCE_AND_DISPATCH(GET_JUMP_OFFSET(REGS.pc));
+    }
+    fprintf(stderr, "DEBUG: JSOP_COALESCE - is nullish, falling through\n");
     // Otherwise fall through - pop the nullish value and evaluate RHS
 }
 END_CASE(JSOP_COALESCE)
