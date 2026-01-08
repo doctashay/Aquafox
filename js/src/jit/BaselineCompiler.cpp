@@ -1209,6 +1209,63 @@ BaselineCompiler::emit_JSOP_OR()
 }
 
 bool
+BaselineCompiler::emit_JSOP_COALESCE()
+{
+    // Nullish coalescing: if value is NOT null/undefined, jump (short-circuit).
+    // If value IS null/undefined, fall through to evaluate RHS.
+    // Unlike AND/OR, we don't convert to boolean - we check for null/undefined directly.
+    frame.syncStack(0);
+
+    masm.loadValue(frame.addressOfStackValue(frame.peek(-1)), R0);
+
+    Label* target = labelOf(pc + GET_JUMP_OFFSET(pc));
+    Label nullish;
+
+    // If value is null, it's nullish - fall through
+    masm.branchTestNull(Assembler::Equal, R0, &nullish);
+    // If value is undefined, it's nullish - fall through
+    masm.branchTestUndefined(Assembler::Equal, R0, &nullish);
+
+    // Value is not nullish - jump to short-circuit
+    masm.jump(target);
+
+    masm.bind(&nullish);
+    // Fall through to evaluate RHS
+    return true;
+}
+
+bool
+BaselineCompiler::emit_JSOP_CHECKOPTCHAIN()
+{
+    // Optional chaining: if value IS null/undefined, replace with undefined and jump.
+    // If value is NOT null/undefined, fall through to continue property access.
+    frame.syncStack(0);
+
+    masm.loadValue(frame.addressOfStackValue(frame.peek(-1)), R0);
+
+    Label* target = labelOf(pc + GET_JUMP_OFFSET(pc));
+    Label notNullish;
+
+    // If value is null, it's nullish - handle it
+    Label isNull;
+    masm.branchTestNull(Assembler::Equal, R0, &isNull);
+    // If value is undefined, it's nullish - handle it (already undefined, just jump)
+    masm.branchTestUndefined(Assembler::NotEqual, R0, &notNullish);
+    // Is undefined - just jump (value is already undefined on stack)
+    masm.jump(target);
+
+    masm.bind(&isNull);
+    // Is null - replace with undefined and jump
+    masm.moveValue(UndefinedValue(), R0);
+    masm.storeValue(R0, frame.addressOfStackValue(frame.peek(-1)));
+    masm.jump(target);
+
+    masm.bind(&notNullish);
+    // Value is not nullish, fall through to continue property access
+    return true;
+}
+
+bool
 BaselineCompiler::emit_JSOP_NOT()
 {
     bool knownBoolean = frame.peek(-1)->isKnownBoolean();
