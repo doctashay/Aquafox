@@ -1,0 +1,63 @@
+# Windows x64 Build Configuration for Aquafox
+# This configuration builds Aquafox for Windows x64 (64-bit)
+# 
+# Requirements:
+# - Visual Studio 2015 or later (2019/2022 recommended)
+# - Windows 10 SDK
+# - Mozilla Build tools (https://wiki.mozilla.org/MozillaBuild)
+# - Python 2.7 or 3.x
+# - Rust toolchain
+#
+# To use this config:
+# 1. Install Mozilla Build tools
+# 2. Open MozillaBuild shell (start-shell.bat)
+# 3. cd to aquafox directory
+# 4. Run: MOZCONFIG=Windows-x64.mozcfg ./mach build
+
+. $topsrcdir/browser/config/mozconfig
+
+# Object directory for Windows build (separate from PPC builds)
+mk_add_options MOZ_OBJDIR=@TOPSRCDIR@/obj-win64-release
+mk_add_options MOZ_MAKE_FLAGS="-j8"
+
+# Build options - similar to PPC config but without PPC-specific flags
+ac_add_options --disable-tests
+ac_add_options --disable-static
+ac_add_options --enable-optimize
+ac_add_options --disable-cpp-exceptions
+ac_add_options --disable-debug
+ac_add_options --disable-crashreporter
+
+# Disable features that may not be needed or cause issues
+ac_add_options --disable-webrtc
+ac_add_options --disable-necko-wifi
+ac_add_options --disable-webspeech
+ac_add_options --disable-accessibility
+
+# Enable printing support
+ac_add_options --enable-printing
+
+# Chrome format
+ac_add_options --enable-chrome-format=jar
+
+# Distribution ID
+ac_add_options --with-distribution-id=org.blackbirdlc
+
+# Strip binaries for smaller size
+ac_add_options --enable-strip
+ac_add_options --enable-install-strip
+
+# Windows-specific: Use system JPEG if available
+# ac_add_options --with-system-jpeg
+
+# DO NOT include these PPC/macOS-specific options:
+# --enable-prebinding (macOS only)
+# --enable-macos-target=10.4 (macOS only)
+# --with-macos-sdk=/Developer/SDKs/MacOSX10.4u.sdk (macOS only)
+# --enable-tenfourfox-vmx (PPC AltiVec only)
+# --enable-tenfourfox-g5 (PPC G5 only)
+
+# Note: Visual Studio paths will be auto-detected by the build system
+# If you need to specify VS version, you can set environment variables:
+# export VCINSTALLDIR="C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC"
+# export WindowsSDKDir="C:/Program Files (x86)/Windows Kits/10"
