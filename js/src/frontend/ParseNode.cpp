@@ -599,12 +599,16 @@ ParseNode*
 ParseNode::appendOrCreateList(ParseNodeKind kind, JSOp op, ParseNode* left, ParseNode* right,
                               FullParseHandler* handler, ParseContext<FullParseHandler>* pc)
 {
+    fprintf(stderr, "DEBUG appendOrCreateList: kind=%d, op=%d, left=%p, right=%p\n",
+            (int)kind, (int)op, (void*)left, (void*)right);
+    
     // The asm.js specification is written in ECMAScript grammar terms that
     // specify *only* a binary tree.  It's a royal pain to implement the asm.js
     // spec to act upon n-ary lists as created below.  So for asm.js, form a
     // binary tree of lists exactly as ECMAScript would by skipping the
     // following optimization.
     if (!pc->useAsmOrInsideUseAsm()) {
+        fprintf(stderr, "DEBUG appendOrCreateList: not asm.js, checking left node\n");
         // Left-associative trees of a given operator (e.g. |a + b + c|) are
         // binary trees in the spec: (+ (+ a b) c) in Lisp terms.  Recursively
         // processing such a tree, exactly implemented that way, would blow the
@@ -617,11 +621,16 @@ ParseNode::appendOrCreateList(ParseNodeKind kind, JSOp op, ParseNode* left, Pars
         // processed with a right fold, whereas the list (+ a b c) must be
         // processed with a left fold because (+) is left-associative.
         //
+        fprintf(stderr, "DEBUG appendOrCreateList: left->isKind(kind)=%d\n", left->isKind(kind));
+        if (left->isKind(kind)) {
+            fprintf(stderr, "DEBUG appendOrCreateList: left->isOp(op)=%d\n", left->isOp(op));
+        }
         if (left->isKind(kind) &&
             left->isOp(op) &&
             (CodeSpec[op].format & JOF_LEFTASSOC ||
              (kind == PNK_POW && !left->pn_parens)))
         {
+            fprintf(stderr, "DEBUG appendOrCreateList: reusing existing list\n");
             ListNode* list = &left->as<ListNode>();
 
             list->append(right);
@@ -631,11 +640,15 @@ ParseNode::appendOrCreateList(ParseNodeKind kind, JSOp op, ParseNode* left, Pars
         }
     }
 
+    fprintf(stderr, "DEBUG appendOrCreateList: creating new ListNode\n");
     ParseNode* list = handler->new_<ListNode>(kind, op, left);
+    fprintf(stderr, "DEBUG appendOrCreateList: ListNode created at %p\n", (void*)list);
     if (!list)
         return nullptr;
 
+    fprintf(stderr, "DEBUG appendOrCreateList: appending right\n");
     list->append(right);
+    fprintf(stderr, "DEBUG appendOrCreateList: done, returning\n");
     return list;
 }
 
