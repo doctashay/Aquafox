@@ -682,6 +682,8 @@ class IonBuilder
     bool jsop_label();
     bool jsop_condswitch();
     bool jsop_andor(JSOp op);
+    bool jsop_coalesce();
+    bool jsop_checkoptchain();
     bool jsop_dup2();
     bool jsop_loophead(jsbytecode* pc);
     bool jsop_compare(JSOp op);

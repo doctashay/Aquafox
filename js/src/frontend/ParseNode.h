@@ -1394,6 +1394,58 @@ class PropertyByValue : public ParseNode
 };
 
 /*
+ * OptionalPropertyAccess is for optional chaining property access (obj?.prop).
+ * Similar to PropertyAccess but uses PNK_OPTDOT.
+ */
+class OptionalPropertyAccess : public ParseNode
+{
+  public:
+    OptionalPropertyAccess(ParseNode* lhs, PropertyName* name, uint32_t begin, uint32_t end)
+      : ParseNode(PNK_OPTDOT, JSOP_NOP, PN_NAME, TokenPos(begin, end))
+    {
+        MOZ_ASSERT(lhs != nullptr);
+        MOZ_ASSERT(name != nullptr);
+        pn_u.name.expr = lhs;
+        pn_u.name.atom = name;
+    }
+
+    static bool test(const ParseNode& node) {
+        bool match = node.isKind(PNK_OPTDOT);
+        MOZ_ASSERT_IF(match, node.isArity(PN_NAME));
+        return match;
+    }
+
+    ParseNode& expression() const {
+        return *pn_u.name.expr;
+    }
+
+    PropertyName& name() const {
+        return *pn_u.name.atom->asPropertyName();
+    }
+};
+
+/*
+ * OptionalPropertyByValue is for optional chaining element access (obj?.[expr]).
+ * Similar to PropertyByValue but uses PNK_OPTELEM.
+ */
+class OptionalPropertyByValue : public ParseNode
+{
+  public:
+    OptionalPropertyByValue(ParseNode* lhs, ParseNode* propExpr, uint32_t begin, uint32_t end)
+      : ParseNode(PNK_OPTELEM, JSOP_NOP, PN_BINARY, TokenPos(begin, end))
+    {
+        pn_u.binary.left = lhs;
+        pn_u.binary.right = propExpr;
+    }
+
+    static bool test(const ParseNode& node) {
+        bool match = node.isKind(PNK_OPTELEM);
+        MOZ_ASSERT_IF(match, node.isArity(PN_BINARY));
+        return match;
+    }
+};
+
+/*
  * A CallSiteNode represents the implicit call site object argument in a TaggedTemplate.
  */
 struct CallSiteNode : public ListNode {

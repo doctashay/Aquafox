@@ -19,12 +19,13 @@ GetDefCount(JSScript* script, unsigned offset)
     jsbytecode* pc = script->offsetToPC(offset);
 
     /*
-     * Add an extra pushed value for OR/AND opcodes, so that they are included
+     * Add an extra pushed value for OR/AND/COALESCE opcodes, so that they are included
      * in the pushed array of stack values for type inference.
      */
     switch (JSOp(*pc)) {
       case JSOP_OR:
       case JSOP_AND:
+      case JSOP_COALESCE:
         return 1;
       case JSOP_PICK:
         /*

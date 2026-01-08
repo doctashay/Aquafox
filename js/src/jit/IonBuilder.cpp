@@ -1707,6 +1707,12 @@ IonBuilder::inspectOpcode(JSOp op)
       case JSOP_OR:
         return jsop_andor(op);
 
+      case JSOP_COALESCE:
+        return jsop_coalesce();
+
+      case JSOP_CHECKOPTCHAIN:
+        return jsop_checkoptchain();
+
       case JSOP_DEFVAR:
         return jsop_defvar(GET_UINT32_INDEX(pc));
 
@@ -4319,6 +4325,24 @@ IonBuilder::jsop_andor(JSOp op)
         return false;
 
     return true;
+}
+
+bool
+IonBuilder::jsop_coalesce()
+{
+    // Nullish coalescing: val ?? rhs
+    // For now, bail out to Baseline/interpreter which handles this correctly.
+    // A full Ion implementation would require building MIR for nullish checks.
+    return abort("JSOP_COALESCE not yet implemented in Ion");
+}
+
+bool
+IonBuilder::jsop_checkoptchain()
+{
+    // Optional chaining check: val?.
+    // For now, bail out to Baseline/interpreter which handles this correctly.
+    // A full Ion implementation would require building MIR for nullish checks.
+    return abort("JSOP_CHECKOPTCHAIN not yet implemented in Ion");
 }
 
 bool

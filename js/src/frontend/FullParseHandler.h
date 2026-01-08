@@ -690,20 +690,17 @@ class FullParseHandler
         return new_<PropertyByValue>(lhs, index, lhs->pn_pos.begin, end);
     }
 
-    // Optional chaining variants
+    // Optional chaining variants - use proper classes that correctly set up parse node fields
     ParseNode* newOptionalPropertyAccess(ParseNode* pn, PropertyName* name, uint32_t end) {
-        // Uses PNK_OPTDOT instead of PNK_DOT
-        TokenPos pos(pn->pn_pos.begin, end);
-        return new_<NameNode>(PNK_OPTDOT, JSOP_NOP, name, pn, pos);
+        return new_<OptionalPropertyAccess>(pn, name, pn->pn_pos.begin, end);
     }
 
     ParseNode* newOptionalPropertyByValue(ParseNode* lhs, ParseNode* index, uint32_t end) {
-        // Uses PNK_OPTELEM instead of PNK_ELEM
-        return new_<BinaryNode>(PNK_OPTELEM, JSOP_NOP, lhs, index);
+        return new_<OptionalPropertyByValue>(lhs, index, lhs->pn_pos.begin, end);
     }
 
     ParseNode* newOptionalCall() {
-        // Uses PNK_OPTCALL instead of PNK_CALL
+        // Uses PNK_OPTCALL instead of PNK_CALL - ListNode is appropriate for call nodes
         return new_<ListNode>(PNK_OPTCALL, JSOP_CALL, pos());
     }
 
