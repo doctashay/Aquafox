@@ -8512,6 +8512,11 @@ BytecodeEmitter::emitClass(ParseNode* pn)
 bool
 BytecodeEmitter::emitTree(ParseNode* pn, EmitLineNumberNote emitLineNote)
 {
+    if (pn->getKind() == PNK_COALESCE) {
+        fprintf(stderr, "DEBUG emitTree: ENTERED with PNK_COALESCE node at %p\n", (void*)pn);
+        fflush(stderr);
+    }
+    
     JS_CHECK_RECURSION(cx, return false);
 
     EmitLevelManager elm(this);
@@ -8673,6 +8678,8 @@ BytecodeEmitter::emitTree(ParseNode* pn, EmitLineNumberNote emitLineNote)
       case PNK_OR:
       case PNK_AND:
       case PNK_COALESCE:
+        fprintf(stderr, "DEBUG emitTree: about to call emitLogical for kind=%d\n", (int)pn->getKind());
+        fflush(stderr);
         if (!emitLogical(pn))
             return false;
         break;

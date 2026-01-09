@@ -7802,6 +7802,10 @@ Parser<ParseHandler>::orExpr1(InHandling inHandling, YieldHandling yieldHandling
     }
 
     MOZ_ASSERT(depth == 0);
+    if (pn && pn->getKind() == PNK_COALESCE) {
+        fprintf(stderr, "DEBUG Parser expr(): returning COALESCE node at %p\n", (void*)pn);
+        fflush(stderr);
+    }
     return pn;
 }
 

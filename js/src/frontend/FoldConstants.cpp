@@ -1786,6 +1786,12 @@ Fold(ExclusiveContext* cx, ParseNode** pnp, Parser<FullParseHandler>& parser, bo
       case PNK_OR:
         return FoldAndOr(cx, pnp, parser, inGenexpLambda);
 
+      // Nullish coalescing: fold children but do not apply AND/OR pruning logic.
+      // This prevents crashes during constant folding while keeping semantics.
+      case PNK_COALESCE:
+        MOZ_ASSERT(pn->isArity(PN_LIST));
+        return FoldList(cx, pn, parser, inGenexpLambda);
+
       case PNK_FUNCTION:
         return FoldFunction(cx, pn, parser, inGenexpLambda);
 
