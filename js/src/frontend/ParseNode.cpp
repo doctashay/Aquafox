@@ -599,8 +599,9 @@ ParseNode*
 ParseNode::appendOrCreateList(ParseNodeKind kind, JSOp op, ParseNode* left, ParseNode* right,
                               FullParseHandler* handler, ParseContext<FullParseHandler>* pc)
 {
-    fprintf(stderr, "DEBUG appendOrCreateList: kind=%d, op=%d, left=%p, right=%p\n",
+    fprintf(stderr, "DEBUG appendOrCreateList ENTER: kind=%d, op=%d, left=%p, right=%p\n",
             (int)kind, (int)op, (void*)left, (void*)right);
+    fflush(stderr);
     
     // The asm.js specification is written in ECMAScript grammar terms that
     // specify *only* a binary tree.  It's a royal pain to implement the asm.js

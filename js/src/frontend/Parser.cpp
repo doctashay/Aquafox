@@ -7779,8 +7779,15 @@ Parser<ParseHandler>::orExpr1(InHandling inHandling, YieldHandling yieldHandling
             if (combiningPnk == PNK_COALESCE) {
                 fprintf(stderr, "DEBUG Parser: Creating COALESCE node with op=%d (JSOP_COALESCE=%d)\n", 
                         (int)combiningOp, (int)JSOP_COALESCE);
+                fprintf(stderr, "DEBUG Parser: nodeStack[depth]=%p, pn=%p, pc=%p\n",
+                        (void*)nodeStack[depth], (void*)pn, (void*)pc);
+                fflush(stderr);
             }
             pn = handler.appendOrCreateList(combiningPnk, nodeStack[depth], pn, pc, combiningOp);
+            if (combiningPnk == PNK_COALESCE) {
+                fprintf(stderr, "DEBUG Parser: appendOrCreateList returned %p\n", (void*)pn);
+                fflush(stderr);
+            }
             if (!pn)
                 return pn;
         }
