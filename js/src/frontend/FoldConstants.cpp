@@ -1261,6 +1261,16 @@ FoldList(ExclusiveContext* cx, ParseNode* list, Parser<FullParseHandler>& parser
 }
 
 static bool
+FoldNullishCoalesce(ExclusiveContext* cx, ParseNode* node, Parser<FullParseHandler>& parser,
+                    bool inGenexpLambda)
+{
+    MOZ_ASSERT(node->isKind(PNK_COALESCE));
+    MOZ_ASSERT(node->isArity(PN_LIST));
+
+    return FoldList(cx, node, parser, inGenexpLambda);
+}
+
+static bool
 FoldReturn(ExclusiveContext* cx, ParseNode* node, Parser<FullParseHandler>& parser,
            bool inGenexpLambda)
 {
@@ -1789,8 +1799,7 @@ Fold(ExclusiveContext* cx, ParseNode** pnp, Parser<FullParseHandler>& parser, bo
       // Nullish coalescing: fold children but do not apply AND/OR pruning logic.
       // This prevents crashes during constant folding while keeping semantics.
       case PNK_COALESCE:
-        MOZ_ASSERT(pn->isArity(PN_LIST));
-        return FoldList(cx, pn, parser, inGenexpLambda);
+        return FoldNullishCoalesce(cx, pn, parser, inGenexpLambda);
 
       case PNK_FUNCTION:
         return FoldFunction(cx, pn, parser, inGenexpLambda);
